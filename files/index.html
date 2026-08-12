@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free.Shelf — Free Games Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --bg: #0B0E14;
+    --bg-elevated: #10141F;
+    --surface: #1B2131;
+    --surface-hover: #232A3D;
+    --line: #2A3145;
+    --text: #EDEFF4;
+    --text-muted: #8791A8;
+    --steam: #4FA8E0;
+    --steam-dim: #2C4A63;
+    --epic: #B24CFF;
+    --epic-dim: #4A2C63;
+    --stamp: #E13A3A;
+    --warn: #E8B34F;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection{ background: var(--stamp); color: white; }
+
+  /* ---------- Header ---------- */
+  .site-header{
+    padding: 48px 32px 28px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 60% 100% at 50% 0%, rgba(178,76,255,0.08), transparent),
+      radial-gradient(ellipse 60% 100% at 20% 0%, rgba(79,168,224,0.08), transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  .logo{
+    font-family: 'Archivo Black', sans-serif;
+    font-size: clamp(32px, 5vw, 52px);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .logo span{ color: var(--stamp); }
+  .tagline{
+    margin-top: 10px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- Tabs ---------- */
+  .tab-row{
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-top: 32px;
+    padding: 0 24px;
+  }
+  .tab{
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.03em;
+    padding: 14px 32px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    position: relative;
+    transition: color .15s ease, background .15s ease;
+  }
+  .tab:first-child{ border-radius: 8px 0 0 8px; border-right: none; }
+  .tab:last-child{ border-radius: 0 8px 8px 0; }
+  .tab .dot{
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background: currentColor;
+    opacity: .5;
+  }
+  .tab.active[data-tab="steam"]{ color: var(--steam); background: var(--steam-dim); border-color: var(--steam); }
+  .tab.active[data-tab="epic"]{ color: var(--epic); background: var(--epic-dim); border-color: var(--epic); }
+  .tab.active .dot{ opacity: 1; }
+
+  /* ---------- Controls ---------- */
+  .controls{
+    max-width: 1180px;
+    margin: 32px auto 0;
+    padding: 0 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .search-wrap{
+    position: relative;
+    flex: 1 1 220px;
+    min-width: 200px;
+  }
+  .search-wrap input{
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px 10px 36px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  .search-wrap input::placeholder{ color: var(--text-muted); }
+  .search-wrap input:focus{ outline: 2px solid var(--steam); outline-offset: 1px; }
+  .search-wrap svg{
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; opacity: .5;
+  }
+
+  .sort-wrap select{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .sort-wrap select:focus{ outline: 2px solid var(--steam); outline-offset: 1px; }
+
+  .genre-row{
+    max-width: 1180px;
+    margin: 16px auto 0;
+    padding: 0 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip{
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all .12s ease;
+  }
+  .chip:hover{ border-color: var(--text-muted); color: var(--text); }
+  .chip:focus-visible{ outline: 2px solid var(--steam); outline-offset: 2px; }
+  .chip.active{ background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .status-row{
+    max-width: 1180px;
+    margin: 20px auto 0;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .result-count{
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+  }
+  .banner{
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--warn);
+    border: 1px solid #5C4A2C;
+    background: rgba(232,179,79,0.08);
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+
+  /* ---------- Grid ---------- */
+  .grid{
+    max-width: 1180px;
+    margin: 16px auto 64px;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 22px;
+  }
+
+  .empty-state, .loading-state{
+    max-width: 1180px;
+    margin: 60px auto;
+    padding: 0 24px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .empty-state .big, .loading-state .big{
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  /* ---------- Card ---------- */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: rise .3s ease both;
+    transition: transform .15s ease, border-color .15s ease;
+    cursor: pointer;
+  }
+  .card:hover{ transform: translateY(-3px); border-color: var(--text-muted); }
+  .card:focus-visible{ outline: 2px solid var(--steam); outline-offset: 2px; }
+  @keyframes rise{ from{ opacity:0; transform: translateY(8px);} to{ opacity:1; transform: translateY(0);} }
+
+  .cover{
+    position: relative;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: flex-end;
+    padding: 14px;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+  }
+  .cover.has-image::after{
+    content:'';
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.05) 60%);
+  }
+  .cover-letter{
+    position: absolute;
+    top: -18px; right: -6px;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 110px;
+    color: rgba(255,255,255,0.14);
+    line-height: 1;
+    user-select: none;
+    z-index: 0;
+  }
+  .cover-title{
+    position: relative;
+    z-index: 1;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 17px;
+    line-height: 1.15;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+
+  .stamp{
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 2;
+    border: 2.5px solid var(--stamp);
+    color: var(--stamp);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 5px 9px;
+    border-radius: 5px;
+    transform: rotate(9deg);
+    background: rgba(11,14,20,0.55);
+    backdrop-filter: blur(2px);
+  }
+
+  .perforation{
+    height: 14px;
+    background:
+      radial-gradient(circle 5px at 0 50%, var(--bg-elevated) 99%, transparent 100%) left,
+      radial-gradient(circle 5px at 100% 50%, var(--bg-elevated) 99%, transparent 100%) right;
+    background-size: 51% 100%;
+    background-repeat: no-repeat;
+    position: relative;
+  }
+  .perforation::before{
+    content:'';
+    position: absolute;
+    top: 50%; left: 12px; right: 12px;
+    border-top: 2px dashed var(--line);
+  }
+
+  .card-body{
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+  .card-title{
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .card-date{
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .card-tags{
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 4px;
+  }
+  .tag{
+    font-family: 'Space Mono', monospace;
+    font-size: 10.5px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--text-muted);
+  }
+  .tag.platform-steam{ color: var(--steam); border-color: var(--steam-dim); }
+  .tag.platform-epic{ color: var(--epic); border-color: var(--epic-dim); }
+  .tag.status{ color: #7CD992; border-color: #2C5C3D; }
+  .tag.status.limited{ color: #E8B34F; border-color: #5C4A2C; }
+  .tag.status.claimed{ color: var(--text-muted); }
+
+  footer{
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    border-top: 1px solid var(--line);
+  }
+
+  .spinner{
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--line);
+    border-top-color: var(--steam);
+    margin: 0 auto 16px;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  @media (prefers-reduced-motion: reduce){
+    .card{ animation: none; }
+    .card:hover{ transform: none; }
+    .spinner{ animation: none; }
+  }
+
+  @media (max-width: 480px){
+    .tab{ padding: 12px 18px; font-size: 13px; }
+    .cover-letter{ font-size: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="logo">FREE<span>.</span>SHELF</div>
+  <div class="tagline">this week's markdowns · steam &amp; epic games</div>
+
+  <div class="tab-row" role="tablist">
+    <button class="tab active" data-tab="steam" role="tab" aria-selected="true"><span class="dot"></span>STEAM</button>
+    <button class="tab" data-tab="epic" role="tab" aria-selected="false"><span class="dot"></span>EPIC GAMES</button>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Search this shelf…" aria-label="Search games">
+  </div>
+  <div class="sort-wrap">
+    <select id="sortSelect" aria-label="Sort games">
+      <option value="newest">SORT: NEWEST FIRST</option>
+      <option value="oldest">SORT: OLDEST FIRST</option>
+      <option value="az">SORT: A → Z</option>
+    </select>
+  </div>
+</div>
+
+<div class="genre-row" id="genreRow"></div>
+
+<div class="status-row">
+  <div class="result-count" id="resultCount"></div>
+  <div class="banner" id="banner" style="display:none;"></div>
+</div>
+
+<div class="grid" id="grid"></div>
+<div class="empty-state" id="emptyState" style="display:none;">
+  <div class="big">Nothing on the shelf</div>
+  <div>No games match that search and filter combo. Try clearing one of them.</div>
+</div>
+<div class="loading-state" id="loadingState" style="display:none;">
+  <div class="spinner"></div>
+  <div class="big">Checking the shelf…</div>
+  <div>Pulling live deals from the backend.</div>
+</div>
+
+<footer>live data via local backend proxy (localhost:3000) · falls back to sample data if the backend isn't running</footer>
+
+<script>
+  // ---------- Config ----------
+  // Auto-switches based on where the page itself is running:
+  // - localhost/127.0.0.1 → talks to your local backend on port 3000
+  // - anywhere else (deployed) → talks to your deployed backend
+  // Replace YOUR_BACKEND_URL below once your backend is deployed (Render, etc.)
+  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const API_BASE = isLocal ? "http://localhost:3000" : "https://YOUR_BACKEND_URL.onrender.com";
+
+  // ---------- Fallback sample data (used only if the backend is unreachable) ----------
+  const genreStyles = {
+    "Action":        "linear-gradient(135deg,#3a1f1f,#7a2b2b)",
+    "Horror":        "linear-gradient(135deg,#150f1f,#3d1f4d)",
+    "RPG":           "linear-gradient(135deg,#1f1a33,#4a3b1f)",
+    "Strategy":      "linear-gradient(135deg,#101d2e,#2b4a63)",
+    "Simulation":    "linear-gradient(135deg,#0f2418,#1f4d33)",
+    "Platformer":    "linear-gradient(135deg,#2e2410,#63501f)",
+    "Battle Royale": "linear-gradient(135deg,#241010,#63251f)",
+    "Sports":        "linear-gradient(135deg,#0f2024,#1f5563)",
+    "Puzzle":        "linear-gradient(135deg,#241a2e,#5c2b63)",
+    "Unknown":       "linear-gradient(135deg,#1c1f2b,#333a4d)"
+  };
+
+  // Fallback entries don't have a real product-page URL on hand, so they link
+  // to a store search for that title instead of a dead/guessed link.
+  function steamSearchUrl(name) {
+    return `https://store.steampowered.com/search/?term=${encodeURIComponent(name)}`;
+  }
+  function epicSearchUrl(name) {
+    return `https://store.epicgames.com/en-US/browse?q=${encodeURIComponent(name)}&sortBy=relevancy&sortDir=DESC`;
+  }
+
+  const sampleData = {
+    steam: [
+      { name: "Team Fortress 2", date: "2007-10-10", genre: "Action", status: "Free-to-Play" },
+      { name: "Dota 2", date: "2013-07-09", genre: "Strategy", status: "Free-to-Play" },
+      { name: "Counter-Strike 2", date: "2023-09-27", genre: "Action", status: "Free-to-Play" },
+      { name: "Warframe", date: "2013-03-25", genre: "Action", status: "Free-to-Play" },
+      { name: "Apex Legends", date: "2019-02-04", genre: "Battle Royale", status: "Free-to-Play" },
+      { name: "Path of Exile", date: "2013-10-23", genre: "RPG", status: "Free-to-Play" },
+      { name: "Destiny 2", date: "2019-10-01", genre: "Action", status: "Free-to-Play" },
+      { name: "Deceit", date: "2017-05-04", genre: "Horror", status: "Free-to-Play" },
+      { name: "War Thunder", date: "2013-08-15", genre: "Simulation", status: "Free-to-Play" },
+      { name: "Rocket League", date: "2020-09-23", genre: "Sports", status: "Free-to-Play" }
+    ].map(g => ({ ...g, url: steamSearchUrl(g.name) })),
+    epic: [
+      { name: "Control", date: "2019-08-27", genre: "Action", status: "Free for a limited time", limited: true },
+      { name: "Alan Wake Remastered", date: "2021-10-05", genre: "Horror", status: "Free for a limited time", limited: true },
+      { name: "Inside", date: "2016-06-29", genre: "Platformer", status: "Free for a limited time", limited: true },
+      { name: "Civilization VI", date: "2016-10-21", genre: "Strategy", status: "Claimed permanently", limited: false },
+      { name: "Grand Theft Auto V", date: "2013-09-17", genre: "Action", status: "Claimed permanently", limited: false },
+      { name: "Fallout: New Vegas", date: "2010-10-19", genre: "RPG", status: "Free for a limited time", limited: true },
+      { name: "Slime Rancher", date: "2017-08-01", genre: "Simulation", status: "Claimed permanently", limited: false },
+      { name: "Untitled Goose Game", date: "2019-09-20", genre: "Puzzle", status: "Claimed permanently", limited: false },
+      { name: "Subnautica", date: "2018-01-23", genre: "Simulation", status: "Claimed permanently", limited: false },
+      { name: "Ghostrunner", date: "2020-10-27", genre: "Action", status: "Free for a limited time", limited: true }
+    ].map(g => ({ ...g, url: epicSearchUrl(g.name) }))
+  };
+
+  // ---------- State ----------
+  const state = {
+    tab: "steam",
+    search: "",
+    sort: "newest",
+    genre: { steam: "All", epic: "All" },
+    cache: { steam: null, epic: null },   // holds normalized game arrays once loaded
+    loading: { steam: false, epic: false },
+    usingFallback: { steam: false, epic: false }
+  };
+
+  // ---------- Data loading ----------
+  function normalizeSteam(raw) {
+    return raw.map(g => ({
+      name: g.name,
+      date: g.releaseDate ? safeDate(g.releaseDate) : null,
+      genre: g.genre || "Unknown",
+      status: "Free-to-Play",
+      limited: false,
+      image: g.image || null,
+      url: g.url || steamSearchUrl(g.name)
+    }));
+  }
+
+  function normalizeEpic(raw) {
+    return raw.map(g => {
+      const limited = g.status === "free-now" && !!g.freeUntil;
+      let status;
+      if (g.status === "upcoming") status = "Coming free soon";
+      else if (limited) status = `Free until ${formatShort(g.freeUntil)}`;
+      else status = "Free promo";
+      return {
+        name: g.name,
+        date: g.releaseDate ? safeDate(g.releaseDate) : null,
+        genre: g.genre || "Unknown",
+        status,
+        limited,
+        image: g.image || null,
+        url: g.url || epicSearchUrl(g.name)
+      };
+    });
+  }
+
+  function safeDate(str) {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  }
+
+  function formatShort(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "soon";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
+  async function loadTab(tab) {
+    if (state.cache[tab]) {
+      render();
+      return state.cache[tab];
+    }
+
+    state.loading[tab] = true;
+    render();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/${tab}/free`);
+      if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      const data = await res.json();
+      const games = tab === "steam" ? normalizeSteam(data.games) : normalizeEpic(data.games);
+      state.cache[tab] = games;
+      state.usingFallback[tab] = false;
+    } catch (err) {
+      console.warn(`Backend unreachable for ${tab}, using sample data:`, err.message);
+      state.cache[tab] = sampleData[tab].map(g => ({ ...g, image: null }));
+      state.usingFallback[tab] = true;
+    } finally {
+      state.loading[tab] = false;
+    }
+
+    render();
+    return state.cache[tab];
+  }
+
+  // ---------- Render helpers ----------
+  function genresFor(list) {
+    return ["All", ...new Set(list.map(g => g.genre))];
+  }
+
+  function renderGenreChips() {
+    const list = state.cache[state.tab] || [];
+    const genres = genresFor(list);
+    const row = document.getElementById("genreRow");
+    row.innerHTML = "";
+    genres.forEach(g => {
+      const btn = document.createElement("button");
+      btn.className = "chip" + (state.genre[state.tab] === g ? " active" : "");
+      btn.textContent = g;
+      btn.addEventListener("click", () => {
+        state.genre[state.tab] = g;
+        render();
+      });
+      row.appendChild(btn);
+    });
+  }
+
+  function filteredSorted() {
+    let list = (state.cache[state.tab] || []).slice();
+    const g = state.genre[state.tab];
+    if (g && g !== "All") list = list.filter(item => item.genre === g);
+    if (state.search.trim()) {
+      const q = state.search.trim().toLowerCase();
+      list = list.filter(item => item.name.toLowerCase().includes(q));
+    }
+    if (state.sort === "newest") list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    else if (state.sort === "oldest") list.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+    else if (state.sort === "az") list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }
+
+  function formatDate(d) {
+    if (!d) return "DATE UNKNOWN";
+    const dt = new Date(d + "T00:00:00");
+    if (isNaN(dt.getTime())) return "DATE UNKNOWN";
+    return dt.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function renderBanner() {
+    const banner = document.getElementById("banner");
+    if (state.usingFallback[state.tab] && !state.loading[state.tab]) {
+      banner.style.display = "inline-block";
+      banner.textContent = "Backend not reachable — showing sample data";
+    } else {
+      banner.style.display = "none";
+    }
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("grid");
+    const empty = document.getElementById("emptyState");
+    const loadingEl = document.getElementById("loadingState");
+    const count = document.getElementById("resultCount");
+
+    if (state.loading[state.tab]) {
+      grid.style.display = "none";
+      empty.style.display = "none";
+      loadingEl.style.display = "block";
+      count.textContent = "";
+      renderBanner();
+      return;
+    }
+    loadingEl.style.display = "none";
+
+    const list = filteredSorted();
+    count.textContent = `${list.length} FREE GAME${list.length === 1 ? "" : "S"} ON ${state.tab === "steam" ? "STEAM" : "EPIC GAMES"}`;
+    renderBanner();
+
+    grid.innerHTML = "";
+    if (list.length === 0) {
+      empty.style.display = "block";
+      grid.style.display = "none";
+      return;
+    }
+    empty.style.display = "none";
+    grid.style.display = "grid";
+
+    list.forEach(item => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.setAttribute("role", "link");
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("aria-label", `Open ${item.name} on ${state.tab === "steam" ? "Steam" : "Epic Games"}`);
+
+      const openGame = () => window.open(item.url, "_blank", "noopener,noreferrer");
+      card.addEventListener("click", openGame);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openGame(); }
+      });
+
+      const platformClass = state.tab === "steam" ? "platform-steam" : "platform-epic";
+      const statusClass = item.limited ? "status limited" : (item.status === "Claimed permanently" ? "status claimed" : "status");
+      const coverBg = item.image
+        ? `background-image:url('${item.image.replace(/'/g, "\\'")}')`
+        : `background:${genreStyles[item.genre] || genreStyles.Unknown}`;
+
+      card.innerHTML = `
+        <div class="cover ${item.image ? "has-image" : ""}" style="${coverBg}">
+          ${!item.image ? `<div class="cover-letter">${item.name.charAt(0)}</div>` : ""}
+          <div class="cover-title">${item.name}</div>
+          <div class="stamp">FREE</div>
+        </div>
+        <div class="perforation"></div>
+        <div class="card-body">
+          <div class="card-title">${item.name}</div>
+          <div class="card-date">RELEASED ${formatDate(item.date)}</div>
+          <div class="card-tags">
+            <span class="tag">${item.genre}</span>
+            <span class="tag ${platformClass}">${state.tab === "steam" ? "Steam" : "Epic Games"}</span>
+            <span class="tag ${statusClass}">${item.status}</span>
+          </div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  function render() {
+    renderGenreChips();
+    renderGrid();
+  }
+
+  // ---------- Events ----------
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", async () => {
+      document.querySelectorAll(".tab").forEach(t => { t.classList.remove("active"); t.setAttribute("aria-selected", "false"); });
+      tab.classList.add("active");
+      tab.setAttribute("aria-selected", "true");
+      state.tab = tab.dataset.tab;
+      state.search = "";
+      document.getElementById("searchInput").value = "";
+      await loadTab(state.tab);
+    });
+  });
+
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    state.search = e.target.value;
+    renderGrid();
+  });
+
+  document.getElementById("sortSelect").addEventListener("change", (e) => {
+    state.sort = e.target.value;
+    renderGrid();
+  });
+
+  // ---------- Init ----------
+  loadTab("steam");
+</script>
+
+</body>
+</html>

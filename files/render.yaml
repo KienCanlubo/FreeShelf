@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: free-games-proxy
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FRONTEND_ORIGIN
+        sync: false
