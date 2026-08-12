@@ -277,12 +277,12 @@
     padding: 14px;
     overflow: hidden;
     background-size: cover;
-    background-position: center;
+    background-position: center 25%;
   }
   .cover.has-image::after{
     content:'';
     position: absolute; inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.05) 60%);
+    background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.1) 55%, rgba(0,0,0,0.05) 75%);
   }
   .cover-letter{
     position: absolute;
@@ -387,6 +387,54 @@
   }
   @keyframes spin{ to{ transform: rotate(360deg); } }
 
+  /* ---------- Skeleton cards (loading state) ---------- */
+  .skeleton-grid{
+    max-width: 1180px;
+    margin: 16px auto 64px;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 22px;
+  }
+  .skeleton-card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+    overflow: hidden;
+  }
+  .skeleton-cover{ aspect-ratio: 4 / 3; background: var(--bg-elevated); }
+  .skeleton-line{ height: 12px; margin: 14px 16px; background: var(--bg-elevated); }
+  .skeleton-line.short{ width: 55%; }
+  .skeleton-cover, .skeleton-line{
+    background-image: linear-gradient(90deg, var(--bg-elevated) 0%, var(--surface-hover) 50%, var(--bg-elevated) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer{ from{ background-position: 200% 0; } to{ background-position: -200% 0; } }
+
+  /* ---------- Load more ---------- */
+  .load-more-wrap{
+    max-width: 1180px;
+    margin: -32px auto 64px;
+    padding: 0 24px;
+    text-align: center;
+  }
+  .load-more-btn{
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    padding: 13px 34px;
+    background: var(--bg-elevated);
+    color: var(--steam);
+    border: 1px solid var(--steam-dim);
+    cursor: pointer;
+    clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+    transition: background .15s ease, box-shadow .15s ease;
+  }
+  .load-more-btn:hover{ background: var(--steam-dim); box-shadow: 0 0 18px rgba(0,229,255,0.3); }
+  .load-more-btn:focus-visible{ outline: 2px solid var(--lime); outline-offset: 3px; }
+
   @media (prefers-reduced-motion: reduce){
     .card{ animation: none; }
     .card:hover{ transform: none; }
@@ -433,17 +481,16 @@
 </div>
 
 <div class="grid" id="grid"></div>
+<div class="load-more-wrap" id="loadMoreWrap" style="display:none;">
+  <button class="load-more-btn" id="loadMoreBtn">LOAD MORE</button>
+</div>
 <div class="empty-state" id="emptyState" style="display:none;">
   <div class="big">Nothing on the shelf</div>
   <div>No games match that search and filter combo. Try clearing one of them.</div>
 </div>
-<div class="loading-state" id="loadingState" style="display:none;">
-  <div class="spinner"></div>
-  <div class="big">Checking the shelf…</div>
-  <div>Pulling live deals from the backend.</div>
-</div>
+<div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
 
-<footer>live data via local backend proxy (localhost:3000) · falls back to sample data if the backend isn't running</footer>
+<footer id="siteFooter">Free.Shelf · live data from Steam &amp; Epic Games</footer>
 
 <script>
   // ---------- Config ----------
@@ -505,6 +552,7 @@
   };
 
   // ---------- State ----------
+  const PAGE_SIZE = 24;
   const state = {
     tab: "steam",
     search: "",
@@ -512,8 +560,14 @@
     genre: { steam: "All", epic: "All" },
     cache: { steam: null, epic: null },   // holds normalized game arrays once loaded
     loading: { steam: false, epic: false },
-    usingFallback: { steam: false, epic: false }
+    usingFallback: { steam: false, epic: false },
+    visibleCount: { steam: PAGE_SIZE, epic: PAGE_SIZE }
   };
+
+  // Genre values that describe a *status* rather than a genre — these come
+  // straight from Steam/Epic's own tagging and aren't useful as filter chips
+  // since (almost) every item already carries that tag.
+  const NON_GENRE_VALUES = new Set(["Free to Play", "Free To Play", "Unknown"]);
 
   // ---------- Data loading ----------
   function normalizeSteam(raw) {
@@ -588,7 +642,8 @@
 
   // ---------- Render helpers ----------
   function genresFor(list) {
-    return ["All", ...new Set(list.map(g => g.genre))];
+    const genres = new Set(list.map(g => g.genre).filter(g => g && !NON_GENRE_VALUES.has(g)));
+    return ["All", ...genres];
   }
 
   function renderGenreChips() {
@@ -602,6 +657,7 @@
       btn.textContent = g;
       btn.addEventListener("click", () => {
         state.genre[state.tab] = g;
+        state.visibleCount[state.tab] = PAGE_SIZE;
         render();
       });
       row.appendChild(btn);
@@ -639,34 +695,57 @@
     }
   }
 
+  function renderSkeleton() {
+    const skeletonGrid = document.getElementById("skeletonGrid");
+    skeletonGrid.innerHTML = "";
+    for (let i = 0; i < 12; i++) {
+      const card = document.createElement("div");
+      card.className = "skeleton-card";
+      card.innerHTML = `
+        <div class="skeleton-cover"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      `;
+      skeletonGrid.appendChild(card);
+    }
+  }
+
   function renderGrid() {
     const grid = document.getElementById("grid");
     const empty = document.getElementById("emptyState");
-    const loadingEl = document.getElementById("loadingState");
+    const skeletonGrid = document.getElementById("skeletonGrid");
+    const loadMoreWrap = document.getElementById("loadMoreWrap");
     const count = document.getElementById("resultCount");
 
     if (state.loading[state.tab]) {
       grid.style.display = "none";
       empty.style.display = "none";
-      loadingEl.style.display = "block";
+      loadMoreWrap.style.display = "none";
+      renderSkeleton();
+      skeletonGrid.style.display = "grid";
       count.textContent = "";
       renderBanner();
       return;
     }
-    loadingEl.style.display = "none";
+    skeletonGrid.style.display = "none";
 
-    const list = filteredSorted();
-    count.textContent = `${list.length} FREE GAME${list.length === 1 ? "" : "S"} ON ${state.tab === "steam" ? "STEAM" : "EPIC GAMES"}`;
+    const fullList = filteredSorted();
+    count.textContent = `${fullList.length} FREE GAME${fullList.length === 1 ? "" : "S"} ON ${state.tab === "steam" ? "STEAM" : "EPIC GAMES"}`;
     renderBanner();
 
     grid.innerHTML = "";
-    if (list.length === 0) {
+    if (fullList.length === 0) {
       empty.style.display = "block";
       grid.style.display = "none";
+      loadMoreWrap.style.display = "none";
       return;
     }
     empty.style.display = "none";
     grid.style.display = "grid";
+
+    const visible = state.visibleCount[state.tab];
+    const list = fullList.slice(0, visible);
+    loadMoreWrap.style.display = fullList.length > visible ? "block" : "none";
 
     list.forEach(item => {
       const card = document.createElement("div");
@@ -728,11 +807,17 @@
 
   document.getElementById("searchInput").addEventListener("input", (e) => {
     state.search = e.target.value;
+    state.visibleCount[state.tab] = PAGE_SIZE;
     renderGrid();
   });
 
   document.getElementById("sortSelect").addEventListener("change", (e) => {
     state.sort = e.target.value;
+    renderGrid();
+  });
+
+  document.getElementById("loadMoreBtn").addEventListener("click", () => {
+    state.visibleCount[state.tab] += PAGE_SIZE;
     renderGrid();
   });
 
