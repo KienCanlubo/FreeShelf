@@ -106,48 +106,70 @@ app.get("/api/steam/free", async (req, res) => {
   if (cached) return res.json(cached);
 
   try {
-    const searchUrl =
-      "https://store.steampowered.com/search/results/?query&start=0&count=50&maxprice=free&category1=998&infinite=1";
-    const sr = await fetch(searchUrl);
-    if (!sr.ok) throw new Error(`Steam search responded ${sr.status}`);
-    const searchJson = await sr.json();
-
-    const $ = cheerio.load(searchJson.results_html || "");
+    // Steam's search endpoint pages results 50 at a time. Walk through pages
+    // until Steam stops returning new results (or we hit a sane upper bound)
+    // so we're not stuck with just the first page's 50 games.
     const appIds = [];
-    $("a.search_result_row").each((_, el) => {
-      const id = $(el).attr("data-ds-appid");
-      if (id) appIds.push(id);
-    });
+    const PAGE_SIZE = 50;
+    const MAX_PAGES = 6; // 6 * 50 = up to 300 candidate app IDs
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const start = page * PAGE_SIZE;
+      const searchUrl = `https://store.steampowered.com/search/results/?query&start=${start}&count=${PAGE_SIZE}&maxprice=free&category1=998&infinite=1`;
+      const sr = await fetch(searchUrl);
+      if (!sr.ok) throw new Error(`Steam search responded ${sr.status}`);
+      const searchJson = await sr.json();
 
-    // Cap how many detail calls we make per request to stay well under
-    // Steam's informal rate limits and keep response times reasonable.
-    const limited = [...new Set(appIds)].slice(0, 25);
+      const $ = cheerio.load(searchJson.results_html || "");
+      const pageIds = [];
+      $("a.search_result_row").each((_, el) => {
+        const id = $(el).attr("data-ds-appid");
+        if (id) pageIds.push(id);
+      });
 
-    const details = await Promise.all(
-      limited.map(async (id) => {
-        try {
-          const dr = await fetch(
-            `https://store.steampowered.com/api/appdetails?appids=${id}&cc=us&l=en`
-          );
-          const dj = await dr.json();
-          const info = dj?.[id]?.data;
-          if (!info) return null;
+      if (pageIds.length === 0) break; // no more pages
+      appIds.push(...pageIds);
+      if (pageIds.length < PAGE_SIZE) break; // last page was partial, so we're done
+    }
 
-          return {
-            name: info.name,
-            image: info.header_image || null,
-            releaseDate: info.release_date?.date || null,
-            genre: info.genres?.[0]?.description || "Unknown",
-            genres: (info.genres || []).map((g) => g.description),
-            status: "free-to-play",
-            platform: "steam",
-            url: `https://store.steampowered.com/app/${id}`
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
+    // Cap how many detail calls we make per request to stay under Steam's
+    // informal appdetails rate limit (~200 req / 5 min per IP) while still
+    // covering the vast majority of the free-to-play catalog. Raise this
+    // further if you're not seeing 429s in the logs.
+    const limited = [...new Set(appIds)].slice(0, 150);
+
+    async function fetchDetail(id) {
+      try {
+        const dr = await fetch(
+          `https://store.steampowered.com/api/appdetails?appids=${id}&cc=us&l=en`
+        );
+        const dj = await dr.json();
+        const info = dj?.[id]?.data;
+        if (!info) return null;
+
+        return {
+          name: info.name,
+          image: info.header_image || null,
+          releaseDate: info.release_date?.date || null,
+          genre: info.genres?.[0]?.description || "Unknown",
+          genres: (info.genres || []).map((g) => g.description),
+          status: "free-to-play",
+          platform: "steam",
+          url: `https://store.steampowered.com/app/${id}`
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    // Fetch in small concurrent batches (instead of all at once) to stay
+    // friendlier to Steam's informal rate limit on appdetails.
+    const BATCH_SIZE = 10;
+    const details = [];
+    for (let i = 0; i < limited.length; i += BATCH_SIZE) {
+      const batch = limited.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(fetchDetail));
+      details.push(...results);
+    }
 
     const games = details.filter(Boolean);
     const payload = { count: games.length, games };
