@@ -368,6 +368,13 @@
   .tag.status.limited{ color: var(--warn); border-color: #5C4A2C; }
   .tag.status.claimed{ color: var(--text-muted); }
 
+  footer a{
+    color: var(--steam);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--steam-dim);
+    transition: color .15s ease, border-color .15s ease;
+  }
+  footer a:hover{ color: var(--lime); border-color: var(--lime); }
   footer{
     text-align: center;
     padding: 20px;
@@ -490,7 +497,8 @@
 </div>
 <div class="skeleton-grid" id="skeletonGrid" style="display:none;"></div>
 
-<footer id="siteFooter">Free.Shelf · live data from Steam &amp; Epic Games</footer>
+<!-- TODO: replace href="#" below with your live portfolio URL once it's deployed -->
+<footer id="siteFooter">Free.Shelf · live data from Steam &amp; Epic Games · Built by <a href="#" target="_blank" rel="noopener noreferrer">Kien</a></footer>
 
 <script>
   // ---------- Config ----------
