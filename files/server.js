@@ -135,7 +135,7 @@ app.get("/api/steam/free", async (req, res) => {
     // informal appdetails rate limit (~200 req / 5 min per IP) while still
     // covering the vast majority of the free-to-play catalog. Raise this
     // further if you're not seeing 429s in the logs.
-    const limited = [...new Set(appIds)].slice(0, 150);
+    const limited = [...new Set(appIds)].slice(0, 200);
 
     async function fetchDetail(id) {
       try {
